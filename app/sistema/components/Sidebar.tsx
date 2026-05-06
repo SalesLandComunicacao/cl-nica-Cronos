@@ -47,10 +47,10 @@ export default function Sidebar({
         <div className="h-16 flex items-center px-4 border-b border-[var(--border)]">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm">
-              FF
+              CC
             </div>
             <div>
-              <p className="text-sm font-semibold text-[var(--text-primary)]">Dr. Felipe</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)]">Clínica Cronos</p>
               <p className="text-[11px] text-[var(--text-muted)]">Odontologia</p>
             </div>
           </div>

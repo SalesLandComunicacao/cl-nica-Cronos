@@ -1,4 +1,4 @@
-# API Contract — Felipe Fernandes / Microsistema de Agenda
+# API Contract — Clínica Cronos / Microsistema de Agenda
 
 Documento de referência para o backend (Node/N8N/edge function) que servirá o frontend deste projeto. O frontend já está pronto e consome os endpoints abaixo via `fetch` — basta apontar a env `NEXT_PUBLIC_API_URL` para a URL pública da API.
 
@@ -6,7 +6,7 @@ Documento de referência para o backend (Node/N8N/edge function) que servirá o 
 
 ## Convenções gerais
 
-- **Base URL**: definida pela env `NEXT_PUBLIC_API_URL` (ex: `https://api.felipefernandes.salesland.com.br`).
+- **Base URL**: definida pela env `NEXT_PUBLIC_API_URL` (ex: `https://api.clinicacronos.salesland.com.br`).
 - **Content-Type**: `application/json` em todas as requisições com body.
 - **Charset**: UTF-8.
 - **Fuso horário**: `America/Fortaleza` (UTC-3). Datas devem ser tratadas como locais.
@@ -183,7 +183,7 @@ Para domingo: `isClosed: true`, `slots: []`.
 
 ## Webhook reverso (sugestão futura — não bloqueante)
 
-Quando o painel do Felipe muda algo manualmente (ex: cancela uma consulta), seria útil notificar o N8N para que a I.A não tente confirmar uma consulta cancelada. Sugestão:
+Quando o painel da clínica muda algo manualmente (ex: cancela uma consulta), seria útil notificar o N8N para que a I.A não tente confirmar uma consulta cancelada. Sugestão:
 
 ```
 POST {N8N_WEBHOOK_URL}
@@ -201,7 +201,7 @@ Não é necessário no MVP — o frontend só consome a API.
 
 ```bash
 # .env.local (frontend)
-NEXT_PUBLIC_API_URL=https://api.felipefernandes.salesland.com.br
+NEXT_PUBLIC_API_URL=https://api.clinicacronos.salesland.com.br
 ```
 
 Sem essa env, o frontend usa um mock em `localStorage` (útil para dev).

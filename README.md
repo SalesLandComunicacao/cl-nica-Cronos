@@ -1,6 +1,6 @@
-# Felipe Fernandes — Microsistema de Agenda
+# Clínica Cronos — Microsistema de Agenda
 
-Painel de agendamento do consultório do Dr. Felipe Fernandes, integrado à I.A de atendimento rodando no N8N.
+Painel de agendamento da Clínica Cronos, integrado à I.A de atendimento rodando no N8N.
 
 ## Stack
 
@@ -27,11 +27,11 @@ npm install
 npm run dev
 ```
 
-Por padrão, o frontend usa um **mock em `localStorage`** (chave `felipe-fernandes:appointments`). Para apontar para o backend real, defina:
+Por padrão, o frontend usa um **mock em `localStorage`** (chave `clinica-cronos:appointments`). Para apontar para o backend real, defina:
 
 ```bash
 # .env.local
-NEXT_PUBLIC_API_URL=https://api.felipefernandes.salesland.com.br
+NEXT_PUBLIC_API_URL=https://api.clinicacronos.salesland.com.br
 ```
 
 ## Estrutura

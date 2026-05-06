@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Dr. Felipe Fernandes | Sistema Inteligente',
-  description: 'Microsistema de agendamento com IA integrada',
+  title: 'Clínica Cronos | Sistema de Agenda',
+  description: 'Microsistema de agendamento da Clínica Cronos com I.A integrada',
 }
 
 export default function RootLayout({

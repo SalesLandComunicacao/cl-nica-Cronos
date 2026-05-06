@@ -1,6 +1,6 @@
 import type { Appointment } from './types'
 
-const KEY = 'felipe-fernandes:appointments'
+const KEY = 'clinica-cronos:appointments'
 
 export function readAll(): Appointment[] {
   if (typeof window === 'undefined') return []

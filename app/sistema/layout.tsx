@@ -26,7 +26,7 @@ export default function SistemaLayout({ children }: { children: React.ReactNode 
             </button>
             <div>
               <h1 className="text-base md:text-lg font-semibold text-[var(--text-primary)]">
-                Dr. Felipe Fernandes
+                Clínica Cronos
               </h1>
               <p className="text-[11px] md:text-xs text-[var(--text-muted)]">
                 Microsistema de Agendamento
@@ -40,7 +40,7 @@ export default function SistemaLayout({ children }: { children: React.ReactNode 
               <span className="text-xs font-medium text-green-400">I.A Online</span>
             </div>
             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-teal-500 to-cyan-500 flex items-center justify-center text-white text-xs font-bold">
-              FF
+              CC
             </div>
           </div>
         </header>

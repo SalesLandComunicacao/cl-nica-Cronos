@@ -12,7 +12,7 @@ import type {
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '')
 const useRemote = Boolean(API_URL)
 
-const STORE_EVENT = 'felipe-fernandes:appointments-changed'
+const STORE_EVENT = 'clinica-cronos:appointments-changed'
 
 function notifyChange() {
   if (typeof window === 'undefined') return

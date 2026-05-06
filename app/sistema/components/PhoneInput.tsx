@@ -44,7 +44,7 @@ export default function PhoneInput({
       required={required}
       className={
         className ??
-        'w-full px-4 py-2.5 rounded-xl bg-white/5 border border-[var(--border)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-teal-500/50 focus:ring-1 focus:ring-teal-500/20 transition-all'
+        'w-full h-10 px-3 rounded-md bg-paper border border-rule text-sm text-ink placeholder:text-muted-soft focus:outline-none focus:border-ink transition-colors font-mono tabular'
       }
     />
   )

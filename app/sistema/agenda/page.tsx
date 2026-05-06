@@ -1,58 +1,95 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import AppointmentDetailModal from '../components/AppointmentDetailModal'
 import ConfirmDialog from '../components/ConfirmDialog'
 import DateNavigator from '../components/DateNavigator'
 import NewAppointmentModal from '../components/NewAppointmentModal'
-import StatusToggle from '../components/StatusToggle'
-import { api, useAppointments } from '../lib/api'
+import WeekGrid from '../components/WeekGrid'
+import WeekNavigator from '../components/WeekNavigator'
+import { api } from '../lib/api'
 import { procedureLabel } from '../lib/procedures'
 import {
   formatDateLong,
   generateSlots,
+  getWeekDays,
+  getWeekStart,
   isClosed,
   todayISO,
 } from '../lib/schedule'
 import type { Appointment, AppointmentStatus } from '../lib/types'
 
+const STORE_EVENT = 'clinica-cronos:appointments-changed'
+
 export default function AgendaPage() {
-  const [date, setDate] = useState<string>(todayISO())
-  const [modalOpen, setModalOpen] = useState(false)
-  const [presetTime, setPresetTime] = useState<string | undefined>(undefined)
+  const [weekStart, setWeekStart] = useState<string>(() => getWeekStart(todayISO()))
+  const [mobileDate, setMobileDate] = useState<string>(todayISO())
+  const [allAppointments, setAllAppointments] = useState<Appointment[]>([])
+  const [loading, setLoading] = useState(true)
+
+  const [newModalOpen, setNewModalOpen] = useState(false)
+  const [newModalDate, setNewModalDate] = useState<string>(todayISO())
+  const [newModalTime, setNewModalTime] = useState<string | undefined>(undefined)
+
+  const [detailAppt, setDetailAppt] = useState<Appointment | null>(null)
   const [confirmRemoval, setConfirmRemoval] = useState<Appointment | null>(null)
-  const [toast, setToast] = useState<{ msg: string; tone: 'success' | 'error' } | null>(null)
 
-  const { appointments, loading, refresh } = useAppointments(date)
+  const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'err' } | null>(null)
 
-  const closedDay = useMemo(() => isClosed(date), [date])
-  const daySlots = useMemo(() => generateSlots(date), [date])
-  const takenSlots = useMemo(
-    () => appointments.map(a => a.time),
-    [appointments],
-  )
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      const all = await api.list()
+      setAllAppointments(all)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
-  const showToast = (msg: string, tone: 'success' | 'error' = 'success') => {
-    setToast({ msg, tone })
-  }
+  useEffect(() => {
+    refresh()
+    const handler = () => refresh()
+    if (typeof window !== 'undefined') {
+      window.addEventListener(STORE_EVENT, handler)
+      return () => window.removeEventListener(STORE_EVENT, handler)
+    }
+  }, [refresh])
 
   useEffect(() => {
     if (!toast) return
-    const t = setTimeout(() => setToast(null), 2500)
+    const t = setTimeout(() => setToast(null), 2400)
     return () => clearTimeout(t)
   }, [toast])
 
-  const openModal = (time?: string) => {
-    setPresetTime(time)
-    setModalOpen(true)
+  const showToast = (msg: string, tone: 'ok' | 'err' = 'ok') => setToast({ msg, tone })
+
+  const weekDays = useMemo(() => getWeekDays(weekStart), [weekStart])
+  const weekAppointments = useMemo(() => {
+    const days = new Set(weekDays)
+    return allAppointments.filter(a => days.has(a.date))
+  }, [allAppointments, weekDays])
+
+  const dayAppointments = useMemo(
+    () => allAppointments.filter(a => a.date === mobileDate).sort((a, b) => a.time.localeCompare(b.time)),
+    [allAppointments, mobileDate],
+  )
+
+  const dayTaken = useMemo(() => dayAppointments.map(a => a.time), [dayAppointments])
+
+  const openNewModal = (date?: string, time?: string) => {
+    setNewModalDate(date ?? todayISO())
+    setNewModalTime(time)
+    setNewModalOpen(true)
   }
 
   const handleStatusChange = async (appt: Appointment, status: AppointmentStatus) => {
     try {
       await api.update(appt.id, { status })
-      showToast(status === 'confirmado' ? 'Confirmado!' : 'Status atualizado.')
+      showToast(status === 'confirmado' ? 'Confirmado.' : 'Status atualizado.')
+      setDetailAppt(prev => (prev ? { ...prev, status } : null))
       refresh()
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Erro ao atualizar.', 'error')
+      showToast(err instanceof Error ? err.message : 'Erro ao atualizar.', 'err')
     }
   }
 
@@ -61,45 +98,45 @@ export default function AgendaPage() {
     try {
       await api.remove(confirmRemoval.id)
       showToast('Agendamento removido.')
+      setDetailAppt(null)
       refresh()
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Erro ao remover.', 'error')
+      showToast(err instanceof Error ? err.message : 'Erro ao remover.', 'err')
     } finally {
       setConfirmRemoval(null)
     }
   }
 
-  const apptByTime = new Map(appointments.map(a => [a.time, a]))
+  const closedMobileDay = isClosed(mobileDate)
 
   return (
-    <div className="space-y-6 fade-in">
+    <div className="px-4 md:px-8 py-6 md:py-8 reveal">
       {toast && (
         <div
-          className={`fixed top-6 right-6 z-50 px-5 py-3 rounded-xl text-white text-sm font-medium shadow-xl fade-in ${
-            toast.tone === 'success'
-              ? 'bg-teal-500 shadow-teal-500/30'
-              : 'bg-red-500 shadow-red-500/30'
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-md text-xs font-mono uppercase tracking-[0.18em] shadow-sm fade-in ${
+            toast.tone === 'ok'
+              ? 'bg-ink text-paper'
+              : 'bg-paper border border-ink text-ink'
           }`}
         >
           {toast.msg}
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between mb-6 md:mb-8">
         <div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)]">Agenda</h2>
-          <p className="text-sm text-[var(--text-muted)] mt-0.5 md:hidden">
-            {formatDateLong(date)}
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted mb-1.5">
+            agenda
           </p>
-          <p className="hidden md:block text-sm text-[var(--text-muted)] mt-0.5">
-            {appointments.length} {appointments.length === 1 ? 'consulta' : 'consultas'} no dia
-          </p>
+          <h2 className="font-serif text-3xl md:text-[36px] leading-none tracking-wordmark text-ink">
+            Visão semanal
+          </h2>
         </div>
         <button
-          onClick={() => openModal()}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-teal-500 text-white text-sm font-semibold hover:bg-teal-600 transition-colors shadow-lg shadow-teal-500/20"
+          onClick={() => openNewModal(mobileDate)}
+          className="self-start md:self-auto inline-flex items-center gap-2 h-10 px-4 rounded-md bg-ink text-paper text-sm font-medium hover:bg-ink-soft transition-colors"
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
@@ -107,42 +144,70 @@ export default function AgendaPage() {
         </button>
       </div>
 
-      <div className="glass-card p-4 md:p-5">
-        <DateNavigator date={date} onChange={setDate} />
+      <div className="hidden md:block space-y-5">
+        <WeekNavigator weekStart={weekStart} onChange={setWeekStart} />
+        {loading ? (
+          <SkeletonGrid />
+        ) : (
+          <WeekGrid
+            weekStart={weekStart}
+            appointments={weekAppointments}
+            onSlotClick={(d, t) => openNewModal(d, t)}
+            onAppointmentClick={appt => setDetailAppt(appt)}
+          />
+        )}
+        <Legend count={weekAppointments.length} />
       </div>
 
-      {closedDay ? (
-        <ClosedNotice />
-      ) : loading ? (
-        <SkeletonList />
-      ) : (
-        <div className="space-y-2">
-          {daySlots.map(time => {
-            const appt = apptByTime.get(time)
-            return (
-              <SlotRow
-                key={time}
-                time={time}
-                appointment={appt}
-                onAdd={() => openModal(time)}
-                onStatusChange={status => appt && handleStatusChange(appt, status)}
-                onRemove={() => appt && setConfirmRemoval(appt)}
-              />
-            )
-          })}
-        </div>
-      )}
+      <div className="md:hidden space-y-4">
+        <DateNavigator date={mobileDate} onChange={setMobileDate} />
+        <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
+          {formatDateLong(mobileDate)}
+        </p>
+
+        {closedMobileDay ? (
+          <ClosedNotice />
+        ) : loading ? (
+          <SkeletonList />
+        ) : (
+          <div className="border border-rule rounded-md divide-y divide-rule-soft">
+            {generateSlots(mobileDate).map(time => {
+              const appt = dayAppointments.find(a => a.time === time)
+              return (
+                <SlotRow
+                  key={time}
+                  time={time}
+                  appointment={appt}
+                  onAdd={() => openNewModal(mobileDate, time)}
+                  onClick={() => appt && setDetailAppt(appt)}
+                />
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       <NewAppointmentModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        defaultDate={date}
-        defaultTime={presetTime}
-        takenSlots={takenSlots}
+        open={newModalOpen}
+        onClose={() => setNewModalOpen(false)}
+        defaultDate={newModalDate}
+        defaultTime={newModalTime}
+        takenSlots={
+          newModalDate
+            ? allAppointments.filter(a => a.date === newModalDate).map(a => a.time)
+            : []
+        }
         onCreated={() => {
-          showToast('Agendamento criado!')
+          showToast('Agendamento criado.')
           refresh()
         }}
+      />
+
+      <AppointmentDetailModal
+        appointment={detailAppt}
+        onClose={() => setDetailAppt(null)}
+        onStatusChange={status => detailAppt && handleStatusChange(detailAppt, status)}
+        onRemove={() => detailAppt && setConfirmRemoval(detailAppt)}
       />
 
       <ConfirmDialog
@@ -154,7 +219,7 @@ export default function AgendaPage() {
             : ''
         }
         confirmLabel="Remover"
-        confirmColor="red"
+        confirmTone="danger"
         onConfirm={handleRemove}
         onCancel={() => setConfirmRemoval(null)}
       />
@@ -166,111 +231,98 @@ function SlotRow({
   time,
   appointment,
   onAdd,
-  onStatusChange,
-  onRemove,
+  onClick,
 }: {
   time: string
   appointment?: Appointment
   onAdd: () => void
-  onStatusChange: (status: AppointmentStatus) => void
-  onRemove: () => void
+  onClick: () => void
 }) {
   if (!appointment) {
     return (
       <button
         onClick={onAdd}
-        className="w-full flex items-center gap-4 p-4 rounded-xl border border-dashed border-[var(--border)] hover:border-teal-500/40 hover:bg-teal-500/5 text-left transition-colors group"
+        className="w-full flex items-center gap-4 px-4 py-3 hover:bg-paper-warm text-left transition-colors group"
       >
-        <span className="w-16 text-base font-semibold text-[var(--text-muted)] group-hover:text-teal-400 transition-colors">
-          {time}
-        </span>
-        <span className="flex-1 text-sm text-[var(--text-muted)] group-hover:text-[var(--text-secondary)] transition-colors">
+        <span className="font-mono text-[11px] tabular text-muted w-12">{time}</span>
+        <span className="text-sm text-muted group-hover:text-ink transition-colors">
           Disponível
-        </span>
-        <span className="text-xs text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Agendar
         </span>
       </button>
     )
   }
 
+  const confirmed = appointment.status === 'confirmado'
+
   return (
-    <div className="glass-card p-4 hover:border-teal-500/30 transition-colors">
-      <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4">
-        <div className="w-16 shrink-0">
-          <span className="text-base font-bold text-teal-400">{time}</span>
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
-            {appointment.patientName}
-          </p>
-          <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] mt-0.5">
-            <span>{procedureLabel(appointment.procedureId)}</span>
-            <span>•</span>
-            <span className="font-mono">{appointment.patientPhone}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          <StatusToggle
-            status={appointment.status}
-            onChange={onStatusChange}
-          />
-          <button
-            onClick={onRemove}
-            aria-label="Remover agendamento"
-            className="w-8 h-8 inline-flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" />
-            </svg>
-          </button>
-        </div>
+    <button
+      onClick={onClick}
+      className="w-full flex items-center gap-4 px-4 py-3 hover:bg-paper-warm text-left transition-colors"
+    >
+      <span className="font-mono text-[11px] tabular text-ink w-12">{time}</span>
+      <span
+        className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+          confirmed ? 'bg-ink' : 'border border-ink'
+        }`}
+      />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-ink truncate">{appointment.patientName}</p>
+        <p className="text-[11px] text-muted truncate mt-0.5">
+          {procedureLabel(appointment.procedureId)} · {appointment.patientPhone}
+        </p>
       </div>
-    </div>
+    </button>
   )
 }
 
 function ClosedNotice() {
   return (
-    <div className="glass-card p-12 text-center">
-      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[var(--border)]/30 mb-4">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[var(--text-muted)]">
-          <rect x="3" y="4" width="18" height="18" rx="2" />
-          <line x1="16" y1="2" x2="16" y2="6" />
-          <line x1="8" y1="2" x2="8" y2="6" />
-          <line x1="3" y1="10" x2="21" y2="10" />
-          <line x1="9" y1="14" x2="15" y2="20" />
-          <line x1="15" y1="14" x2="9" y2="20" />
-        </svg>
-      </div>
-      <h3 className="text-base font-semibold text-[var(--text-primary)]">
-        Consultório fechado
-      </h3>
-      <p className="text-sm text-[var(--text-muted)] mt-1">
-        Domingo o consultório não atende. Selecione outro dia.
+    <div className="border border-rule rounded-md py-12 text-center">
+      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
+        consultório fechado
       </p>
+      <p className="font-serif text-xl text-ink mt-2">Domingo</p>
+      <p className="text-sm text-muted mt-1">Selecione outro dia</p>
     </div>
+  )
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="border border-rule rounded-md h-[400px] bg-paper-warm/30 animate-pulse" />
   )
 }
 
 function SkeletonList() {
   return (
-    <div className="space-y-2">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          className="h-16 rounded-xl bg-white/[0.02] border border-[var(--border)] animate-pulse"
-        />
+    <div className="border border-rule rounded-md divide-y divide-rule-soft">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="h-12 bg-paper-warm/30 animate-pulse" />
       ))}
+    </div>
+  )
+}
+
+function Legend({ count }: { count: number }) {
+  return (
+    <div className="flex items-center justify-between flex-wrap gap-3 pt-2">
+      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted">
+        {count} {count === 1 ? 'consulta' : 'consultas'} na semana
+      </p>
+      <div className="flex items-center gap-5">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full border border-ink" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+            agendado
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-ink" />
+          <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted">
+            confirmado
+          </span>
+        </div>
+      </div>
     </div>
   )
 }
